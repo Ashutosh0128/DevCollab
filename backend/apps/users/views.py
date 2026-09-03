@@ -16,6 +16,18 @@ from .serializers import (
 )
 
 
+class GlobalSkillsView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        responses={200: SkillSerializer(many=True)},
+        description="Retrieve all global technical skills."
+    )
+    def get(self, request):
+        serializer = SkillSerializer(Skill.objects.all(), many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 

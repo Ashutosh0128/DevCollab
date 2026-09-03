@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
+    GlobalSkillsView,
     RegisterView,
     LoginView,
     LogoutView,
@@ -20,7 +21,8 @@ urlpatterns = [
     path('auth/me/', CurrentUserView.as_view(), name='auth-me'),
     path('auth/change-password/', ChangePasswordView.as_view(), name='auth-change-password'),
 
-    # Skills endpoints (/api/auth/skills/)
+    # Skills endpoints (/api/auth/skills/ and /api/skills/)
+    path('skills/', GlobalSkillsView.as_view(), name='global-skills-list'),
     path('auth/skills/', UserSkillsView.as_view(), name='user-skills-list'),
     path('auth/skills/<int:pk>/', UserSkillDetailView.as_view(), name='user-skill-detail'),
 

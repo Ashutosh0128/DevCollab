@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { Layers, LogOut, LayoutDashboard, LogIn, UserPlus, User as UserIcon } from 'lucide-react';
+import { Layers, LogOut, LayoutDashboard, LogIn, UserPlus, User as UserIcon, FolderKanban } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -44,6 +44,18 @@ export const Navbar: React.FC = () => {
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>Dashboard</span>
+              </Link>
+
+              <Link
+                to="/projects"
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive('/projects')
+                    ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <FolderKanban className="w-4 h-4" />
+                <span>Projects</span>
               </Link>
 
               <Link
