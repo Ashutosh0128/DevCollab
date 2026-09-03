@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { HealthResponse } from '../types/api';
+import type { HealthResponse } from '../types/api';
 
 const api = axios.create({
   baseURL: '/api/v1',
