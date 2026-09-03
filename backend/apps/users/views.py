@@ -5,12 +5,14 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
+from .models import Skill
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
     UserSerializer,
     UserProfileUpdateSerializer,
     ChangePasswordSerializer,
+    SkillSerializer,
 )
 
 
@@ -20,7 +22,7 @@ class RegisterView(APIView):
     @extend_schema(
         request=RegisterSerializer,
         responses={
-            210: UserSerializer,
+            201: UserSerializer,
             400: OpenApiResponse(description="Validation error")
         },
         description="Register a new user account and obtain initial JWT token pair."
@@ -78,7 +80,7 @@ class LogoutView(APIView):
             token = RefreshToken(refresh_token)
             token.blacklist()
             return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
-        except Exception as e:
+        except Exception:
             return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -92,6 +94,18 @@ class CurrentUserView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        request=UserProfileUpdateSerializer,
+        responses={200: UserSerializer, 400: OpenApiResponse(description="Validation error")},
+        description="Update currently authenticated user's developer profile."
+    )
+    def patch(self, request):
+        serializer = UserProfileUpdateSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserProfileUpdateView(APIView):
@@ -108,6 +122,52 @@ class UserProfileUpdateView(APIView):
             user = serializer.save()
             return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserSkillsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={200: SkillSerializer(many=True)},
+        description="Retrieve technical skills associated with the authenticated user."
+    )
+    def get(self, request):
+        serializer = SkillSerializer(request.user.skills.all(), many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        request={"application/json": {"type": "object", "properties": {"name": {"type": "string"}}}},
+        responses={201: SkillSerializer, 400: OpenApiResponse(description="Validation error")},
+        description="Add a skill by name to the authenticated user's profile (case-insensitive lookup)."
+    )
+    def post(self, request):
+        name = request.data.get("name", "").strip()
+        if not name:
+            return Response({"name": ["Skill name is required."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Case-insensitive lookup to reuse existing Skill
+        skill = Skill.objects.filter(name__iexact=name).first()
+        if not skill:
+            skill = Skill.objects.create(name=name)
+
+        request.user.skills.add(skill)
+        return Response(SkillSerializer(skill).data, status=status.HTTP_201_CREATED)
+
+
+class UserSkillDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={200: OpenApiResponse(description="Skill detached from user profile"), 404: OpenApiResponse(description="Skill not found")},
+        description="Remove a skill from the authenticated user's profile without deleting the global Skill record."
+    )
+    def delete(self, request, pk):
+        try:
+            skill = request.user.skills.get(pk=pk)
+            request.user.skills.remove(skill)
+            return Response({"detail": "Skill removed from profile."}, status=status.HTTP_200_OK)
+        except Skill.DoesNotExist:
+            return Response({"detail": "Skill not associated with this user profile."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class ChangePasswordView(APIView):

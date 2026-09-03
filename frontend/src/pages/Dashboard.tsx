@@ -1,19 +1,38 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Navbar } from '../components/layout/Navbar';
-import { User as UserIcon, Briefcase, Award, MapPin, Globe, Shield, LogOut, CheckCircle2, Code2 } from 'lucide-react';
+import { User as UserIcon, Briefcase, Award, MapPin, Globe, Shield, LogOut, CheckCircle2, Code2, Edit3, Sparkles } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
 
   if (!user) return null;
 
+  // Profile Completion Percentage Calculation
+  const calculateCompletion = (): number => {
+    const fields = [
+      user.first_name,
+      user.last_name,
+      user.bio,
+      user.job_title,
+      user.experience_level,
+      user.location,
+      user.skills && user.skills.length > 0 ? 'skills' : '',
+      user.github_url || user.linkedin_url || user.portfolio_url ? 'social' : '',
+    ];
+    const filledCount = fields.filter((val) => Boolean(val && String(val).trim() !== '')).length;
+    return Math.round((filledCount / fields.length) * 100);
+  };
+
+  const completionPercentage = calculateCompletion();
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-10">
-        {/* Welcome Header */}
+        {/* Welcome Header Banner */}
         <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 mb-8 shadow-xl backdrop-blur flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center space-x-5">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-500/25 shrink-0">
@@ -36,13 +55,23 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={logout}
-            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-rose-500/10 hover:text-rose-400 border border-slate-700 text-sm font-medium transition-all cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
-          </button>
+          <div className="flex items-center space-x-3 w-full md:w-auto">
+            <Link
+              to="/profile"
+              className="flex-1 md:flex-none flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/20 transition-all cursor-pointer"
+            >
+              <Edit3 className="w-4 h-4" />
+              <span>Edit Profile</span>
+            </Link>
+
+            <button
+              onClick={logout}
+              className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-500/10 hover:text-rose-400 border border-slate-700 text-sm font-medium transition-all cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
         </div>
 
         {/* Dashboard Cards Grid */}
@@ -50,10 +79,20 @@ export const Dashboard: React.FC = () => {
           {/* Developer Profile Overview Card */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
-              <h2 className="text-lg font-bold text-slate-100 mb-4 flex items-center space-x-2">
-                <UserIcon className="w-5 h-5 text-indigo-400" />
-                <span>Developer Overview</span>
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-slate-100 flex items-center space-x-2">
+                  <UserIcon className="w-5 h-5 text-indigo-400" />
+                  <span>Developer Overview</span>
+                </h2>
+
+                <Link
+                  to="/profile"
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center space-x-1"
+                >
+                  <span>Edit</span>
+                  <Edit3 className="w-3 h-3" />
+                </Link>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/80">
@@ -110,10 +149,20 @@ export const Dashboard: React.FC = () => {
 
             {/* Developer Skills Section */}
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
-              <h2 className="text-lg font-bold text-slate-100 mb-4 flex items-center space-x-2">
-                <Award className="w-5 h-5 text-indigo-400" />
-                <span>Technical Skills</span>
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-slate-100 flex items-center space-x-2">
+                  <Award className="w-5 h-5 text-indigo-400" />
+                  <span>Technical Skills</span>
+                </h2>
+
+                <Link
+                  to="/profile"
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center space-x-1"
+                >
+                  <span>Manage Skills</span>
+                  <Edit3 className="w-3 h-3" />
+                </Link>
+              </div>
 
               {user.skills && user.skills.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
@@ -129,7 +178,7 @@ export const Dashboard: React.FC = () => {
               ) : (
                 <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/60 text-xs text-slate-400 flex items-center space-x-2">
                   <CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" />
-                  <span>No skills tagged yet. You can update your skills via profile settings.</span>
+                  <span>No skills tagged yet. You can add your skills on your profile page.</span>
                 </div>
               )}
             </div>
@@ -137,6 +186,27 @@ export const Dashboard: React.FC = () => {
 
           {/* Sidebar Info Card */}
           <div className="space-y-6">
+            {/* Profile Completion Widget */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-slate-200 flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Profile Completion</span>
+                </span>
+                <span className="text-sm font-mono font-bold text-indigo-400">{completionPercentage}%</span>
+              </div>
+              <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden mb-4 border border-slate-800">
+                <div
+                  className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full transition-all duration-500 rounded-full"
+                  style={{ width: `${completionPercentage}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Complete your profile details to stand out to teammates and clients.
+              </p>
+            </div>
+
+            {/* Account Info */}
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
               <h2 className="text-lg font-bold text-slate-100 mb-4">Account Information</h2>
               <div className="space-y-3 text-xs">
