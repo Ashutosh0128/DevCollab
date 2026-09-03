@@ -18,6 +18,9 @@ class ProjectOwnerSerializer(serializers.ModelSerializer):
 class ProjectSerializer(serializers.ModelSerializer):
     owner = ProjectOwnerSerializer(read_only=True)
     skills = SkillSerializer(many=True, read_only=True)
+    member_count = serializers.SerializerMethodField()
+    is_member = serializers.SerializerMethodField()
+    has_pending_request = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -33,10 +36,35 @@ class ProjectSerializer(serializers.ModelSerializer):
             'demo_url',
             'owner',
             'skills',
+            'member_count',
+            'is_member',
+            'has_pending_request',
             'created_at',
             'updated_at',
         )
         read_only_fields = ('id', 'owner', 'created_at', 'updated_at')
+
+    def get_member_count(self, obj):
+        if hasattr(obj, 'annotated_member_count'):
+            return obj.annotated_member_count + 1
+        return obj.memberships.count() + 1
+
+    def get_is_member(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+        if obj.owner_id == request.user.id:
+            return True
+        return obj.memberships.filter(user_id=request.user.id).exists()
+
+    def get_has_pending_request(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+        if obj.owner_id == request.user.id:
+            return False
+        from apps.collaboration.models import CollaborationRequest
+        return CollaborationRequest.objects.filter(project_id=obj.id, requester_id=request.user.id, status='pending').exists()
 
 
 class ProjectCreateUpdateSerializer(serializers.ModelSerializer):

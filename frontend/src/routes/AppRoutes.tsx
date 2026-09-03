@@ -9,6 +9,7 @@ import { Projects } from '../pages/Projects';
 import { ProjectDetails } from '../pages/ProjectDetails';
 import { CreateProject } from '../pages/CreateProject';
 import { EditProject } from '../pages/EditProject';
+import { ProjectRequests } from '../pages/ProjectRequests';
 import { ProtectedRoute } from './ProtectedRoute';
 
 export const AppRoutes: React.FC = () => {
@@ -28,6 +29,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/profile" element={<Profile />} />
         <Route path="/projects/new" element={<CreateProject />} />
         <Route path="/projects/:id/edit" element={<EditProject />} />
+        <Route path="/projects/:id/requests" element={<ProjectRequests />} />
       </Route>
     </Routes>
   );

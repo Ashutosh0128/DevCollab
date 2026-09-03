@@ -28,6 +28,9 @@ export interface Project {
   demo_url: string;
   owner: ProjectOwner;
   skills: ProjectSkill[];
+  member_count?: number;
+  is_member?: boolean;
+  has_pending_request?: boolean;
   created_at: string;
   updated_at: string;
 }

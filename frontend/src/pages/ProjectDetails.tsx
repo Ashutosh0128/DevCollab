@@ -2,8 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Navbar } from '../components/layout/Navbar';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { RequestJoinModal } from '../components/collaboration/RequestJoinModal';
+import { MembersList } from '../components/collaboration/MembersList';
 import { getProject, deleteProject } from '../api/projects';
+import {
+  createCollaborationRequest,
+  getProjectMembers,
+  leaveProject,
+  removeMember,
+} from '../api/collaboration';
 import type { Project, ProjectStatus, ProjectVisibility } from '../types/project';
+import type { ProjectMembership } from '../types/collaboration';
 import { useAuth } from '../hooks/useAuth';
 import {
   FolderKanban,
@@ -13,6 +22,11 @@ import {
   Trash2,
   ArrowLeft,
   AlertCircle,
+  UserPlus,
+  Clock,
+  UserCheck,
+  LogOut,
+  Users,
 } from 'lucide-react';
 import { AxiosError } from 'axios';
 
@@ -31,35 +45,79 @@ const visibilityBadgeMap: Record<ProjectVisibility, { label: string; className: 
 export const ProjectDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const [project, setProject] = useState<Project | null>(null);
+  const [members, setMembers] = useState<ProjectMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [showRequestModal, setShowRequestModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  const fetchProjectAndMembers = async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const projData = await getProject(Number(id));
+      setProject(projData);
+
+      try {
+        const memberData = await getProjectMembers(Number(id));
+        setMembers(memberData);
+      } catch (err) {
+        // Members list may be restricted if private project & unauthenticated
+      }
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ detail?: string }>;
+      if (axiosErr.response?.status === 403 || axiosErr.response?.status === 404) {
+        setError("You don't have permission to view this project or it does not exist.");
+      } else {
+        setError('Failed to load project details.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchProjectDetails = async () => {
-      if (!id) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await getProject(Number(id));
-        setProject(data);
-      } catch (err) {
-        const axiosErr = err as AxiosError<{ detail?: string }>;
-        if (axiosErr.response?.status === 403 || axiosErr.response?.status === 404) {
-          setError("You don't have permission to view this project or it does not exist.");
-        } else {
-          setError('Failed to load project details.');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProjectDetails();
+    fetchProjectAndMembers();
   }, [id]);
+
+  const handleSendRequest = async (message: string) => {
+    if (!project) return;
+    await createCollaborationRequest({ project: project.id, message });
+    await fetchProjectAndMembers();
+  };
+
+  const handleLeaveProject = async () => {
+    if (!project) return;
+    setIsLeaving(true);
+    try {
+      await leaveProject(project.id);
+      setShowLeaveModal(false);
+      await fetchProjectAndMembers();
+    } catch (err) {
+      setError('Failed to leave project.');
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: number, username: string) => {
+    if (!project) return;
+    try {
+      await removeMember(project.id, userId);
+      setMembers(members.filter((m) => m.user.id !== userId));
+      await fetchProjectAndMembers();
+    } catch (err) {
+      setError(`Failed to remove @${username}.`);
+    }
+  };
 
   const handleDelete = async () => {
     if (!project) return;
@@ -107,7 +165,10 @@ export const ProjectDetails: React.FC = () => {
     );
   }
 
-  const isOwner = user && user.id === project.owner?.id;
+  const isOwner = Boolean(user && user.id === project.owner?.id);
+  const isMember = project.is_member || false;
+  const hasPending = project.has_pending_request || false;
+
   const statusInfo = statusBadgeMap[project.status] || statusBadgeMap.planning;
   const visibilityInfo = visibilityBadgeMap[project.visibility] || visibilityBadgeMap.public;
 
@@ -143,29 +204,66 @@ export const ProjectDetails: React.FC = () => {
               )}
             </div>
 
-            {/* Owner Actions */}
-            {isOwner && (
-              <div className="flex items-center space-x-3 w-full md:w-auto shrink-0">
-                <Link
-                  to={`/projects/${project.id}/edit`}
-                  className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-lg shadow-indigo-600/20"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Edit Project</span>
-                </Link>
+            {/* Actions Section */}
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto shrink-0">
+              {isOwner ? (
+                <>
+                  <Link
+                    to={`/projects/${project.id}/requests`}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-semibold text-xs transition-all flex items-center justify-center space-x-1.5"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Manage Requests</span>
+                  </Link>
 
+                  <Link
+                    to={`/projects/${project.id}/edit`}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all flex items-center justify-center space-x-1.5 shadow-lg shadow-indigo-600/20"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Edit</span>
+                  </Link>
+
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 font-semibold text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                </>
+              ) : isMember ? (
+                <div className="flex items-center space-x-3">
+                  <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                    <UserCheck className="w-4 h-4" />
+                    <span>You are a Member</span>
+                  </span>
+                  <button
+                    onClick={() => setShowLeaveModal(true)}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/10 hover:text-rose-400 border border-slate-700 text-xs font-medium transition-all flex items-center space-x-1 cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Leave</span>
+                  </button>
+                </div>
+              ) : hasPending ? (
+                <span className="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold">
+                  <Clock className="w-4 h-4 animate-pulse" />
+                  <span>Request Pending</span>
+                </span>
+              ) : project.visibility === 'public' && isAuthenticated ? (
                 <button
-                  onClick={() => setShowDeleteModal(true)}
-                  className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 font-semibold text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+                  onClick={() => setShowRequestModal(true)}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all flex items-center space-x-2 cursor-pointer shadow-lg shadow-indigo-600/25"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
+                  <UserPlus className="w-4 h-4" />
+                  <span>Request to Join</span>
                 </button>
-              </div>
-            )}
+              ) : null}
+            </div>
           </div>
 
-          {/* Repository & Demo Links */}
+          {/* Links */}
           <div className="flex flex-wrap items-center gap-3 pt-6 border-t border-slate-800">
             {project.github_url && (
               <a
@@ -194,7 +292,7 @@ export const ProjectDetails: React.FC = () => {
           </div>
         </div>
 
-        {/* Main Grid: Details + Owner Sidebar */}
+        {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Detailed Project Description */}
           <div className="lg:col-span-2 space-y-8">
@@ -232,34 +330,17 @@ export const ProjectDetails: React.FC = () => {
             </div>
           </div>
 
-          {/* Sidebar Info */}
+          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Owner Information Card */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 shadow-xl backdrop-blur">
-              <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Project Owner</h2>
-              <div className="flex items-center space-x-4">
-                {project.owner?.avatar ? (
-                  <img
-                    src={project.owner.avatar}
-                    alt={project.owner.username}
-                    className="w-14 h-14 rounded-2xl object-cover border-2 border-indigo-500/30 shadow-lg"
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-xl font-extrabold shadow-lg">
-                    {project.owner?.username[0].toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-base font-bold text-slate-100">
-                    {project.owner?.full_name || project.owner?.username}
-                  </h3>
-                  <p className="text-xs text-indigo-400 font-mono">@{project.owner?.username}</p>
-                  <p className="text-xs text-slate-400 mt-1">{project.owner?.job_title || 'Developer'}</p>
-                </div>
-              </div>
-            </div>
+            {/* Members List Component */}
+            <MembersList
+              owner={project.owner}
+              members={members}
+              isOwner={isOwner}
+              onRemoveMember={handleRemoveMember}
+            />
 
-            {/* Meta Metadata */}
+            {/* Metadata */}
             <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 shadow-xl backdrop-blur text-xs space-y-3">
               <div className="flex justify-between py-2 border-b border-slate-800">
                 <span className="text-slate-400">Created</span>
@@ -272,6 +353,44 @@ export const ProjectDetails: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Request Join Modal */}
+        <RequestJoinModal
+          isOpen={showRequestModal}
+          projectTitle={project.title}
+          onClose={() => setShowRequestModal(false)}
+          onSubmit={handleSendRequest}
+        />
+
+        {/* Leave Confirmation Modal */}
+        {showLeaveModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <h3 className="text-lg font-bold text-white">Leave Project?</h3>
+              <p className="text-xs text-slate-300">
+                Are you sure you want to leave <span className="font-semibold text-white">"{project.title}"</span>?
+              </p>
+              <div className="flex items-center justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLeaveModal(false)}
+                  disabled={isLeaving}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLeaveProject}
+                  disabled={isLeaving}
+                  className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-semibold disabled:opacity-50"
+                >
+                  {isLeaving ? 'Leaving...' : 'Leave Project'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (

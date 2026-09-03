@@ -1,11 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Navbar } from '../components/layout/Navbar';
-import { User as UserIcon, Briefcase, Award, MapPin, Globe, Shield, LogOut, CheckCircle2, Code2, Edit3, Sparkles, FolderKanban } from 'lucide-react';
+import { getSentRequests } from '../api/collaboration';
+import type { CollaborationRequest } from '../types/collaboration';
+import {
+  User as UserIcon,
+  Briefcase,
+  Award,
+  MapPin,
+  Globe,
+  Shield,
+  LogOut,
+  CheckCircle2,
+  Code2,
+  Edit3,
+  Sparkles,
+  FolderKanban,
+  Send,
+} from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
+  const [sentRequests, setSentRequests] = useState<CollaborationRequest[]>([]);
+
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const data = await getSentRequests();
+        setSentRequests(data);
+      } catch (err) {
+        console.error('Failed to fetch sent collaboration requests', err);
+      }
+    };
+    fetchRequests();
+  }, []);
 
   if (!user) return null;
 
@@ -221,6 +250,55 @@ export const Dashboard: React.FC = () => {
                   </Link>
                 </div>
               </div>
+            </div>
+
+            {/* Sent Collaboration Requests Widget */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-slate-100 flex items-center space-x-2">
+                  <Send className="w-5 h-5 text-indigo-400" />
+                  <span>My Sent Collaboration Requests ({sentRequests.length})</span>
+                </h2>
+              </div>
+
+              {sentRequests.length > 0 ? (
+                <div className="space-y-2.5">
+                  {sentRequests.slice(0, 5).map((req) => (
+                    <div
+                      key={req.id}
+                      className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <Link
+                          to={`/projects/${req.project}`}
+                          className="font-bold text-slate-200 hover:text-indigo-400 transition-colors"
+                        >
+                          {req.project_title}
+                        </Link>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Sent: {new Date(req.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          req.status === 'accepted'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : req.status === 'rejected'
+                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                            : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                        }`}
+                      >
+                        {req.status.toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/60 text-xs text-slate-400">
+                  You haven't submitted any collaboration requests yet. Browse public projects to request to join!
+                </div>
+              )}
             </div>
           </div>
 
