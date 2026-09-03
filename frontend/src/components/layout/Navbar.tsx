@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { NotificationBell } from '../notifications/NotificationBell';
 import { Layers, LogOut, LayoutDashboard, LogIn, UserPlus, User as UserIcon, FolderKanban } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -69,6 +70,8 @@ export const Navbar: React.FC = () => {
                 <UserIcon className="w-4 h-4" />
                 <span>Profile</span>
               </Link>
+
+              <NotificationBell />
 
               <div className="flex items-center space-x-2 pl-3 border-l border-slate-800">
                 <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-semibold text-indigo-300">

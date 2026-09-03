@@ -10,6 +10,7 @@ urlpatterns = [
     path('api/', include('apps.users.urls')),
     path('api/', include('apps.projects.urls')),
     path('api/', include('apps.collaboration.urls')),
+    path('api/', include('apps.notifications.urls')),
 
     # OpenAPI Schema & Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

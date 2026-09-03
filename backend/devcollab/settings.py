@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.projects',
     'apps.collaboration',
+    'apps.notifications',
 ]
 
 MIDDLEWARE = [

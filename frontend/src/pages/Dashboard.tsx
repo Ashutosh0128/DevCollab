@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Navbar } from '../components/layout/Navbar';
 import { getSentRequests } from '../api/collaboration';
+import { getUnreadCount } from '../api/notifications';
 import type { CollaborationRequest } from '../types/collaboration';
 import {
   User as UserIcon,
@@ -18,22 +19,29 @@ import {
   Sparkles,
   FolderKanban,
   Send,
+  Bell,
+  ArrowRight,
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [sentRequests, setSentRequests] = useState<CollaborationRequest[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   useEffect(() => {
-    const fetchRequests = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getSentRequests();
-        setSentRequests(data);
+        const [reqData, countData] = await Promise.all([
+          getSentRequests(),
+          getUnreadCount(),
+        ]);
+        setSentRequests(reqData);
+        setUnreadCount(countData.count);
       } catch (err) {
-        console.error('Failed to fetch sent collaboration requests', err);
+        console.error('Failed to fetch dashboard collaboration/notification data', err);
       }
     };
-    fetchRequests();
+    fetchData();
   }, []);
 
   if (!user) return null;
@@ -174,6 +182,31 @@ export const Dashboard: React.FC = () => {
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Notifications Summary Widget */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 shadow-xl flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400">
+                  <Bell className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Notifications Hub</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {unreadCount > 0
+                      ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}.`
+                      : "You're all caught up! No unread notifications."}
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                to="/notifications"
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer shadow-lg shadow-indigo-600/20"
+              >
+                <span>View Notifications</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
 
             {/* Developer Skills Section */}

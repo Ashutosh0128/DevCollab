@@ -7,6 +7,13 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from apps.projects.models import Project
+from apps.notifications.services import (
+    notify_collaboration_request,
+    notify_collaboration_accepted,
+    notify_collaboration_rejected,
+    notify_member_removed,
+    notify_member_left,
+)
 from .models import CollaborationRequest, ProjectMembership
 from .serializers import (
     CollaborationRequestSerializer,
@@ -26,7 +33,9 @@ class CreateRequestView(APIView):
     def post(self, request):
         serializer = CreateCollaborationRequestSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        collab_request = serializer.save(requester=request.user)
+        with transaction.atomic():
+            collab_request = serializer.save(requester=request.user)
+            notify_collaboration_request(collab_request)
         return Response(CollaborationRequestSerializer(collab_request).data, status=status.HTTP_201_CREATED)
 
 
@@ -78,6 +87,7 @@ class AcceptRequestView(APIView):
             collab_request.status = 'accepted'
             collab_request.save()
             ProjectMembership.objects.get_or_create(project=collab_request.project, user=collab_request.requester)
+            notify_collaboration_accepted(collab_request)
 
         return Response(CollaborationRequestSerializer(collab_request).data, status=status.HTTP_200_OK)
 
@@ -98,8 +108,10 @@ class RejectRequestView(APIView):
         if collab_request.status != 'pending':
             return Response({"detail": f"Cannot reject request with status '{collab_request.status}'. Only pending requests can be rejected."}, status=status.HTTP_400_BAD_REQUEST)
 
-        collab_request.status = 'rejected'
-        collab_request.save()
+        with transaction.atomic():
+            collab_request.status = 'rejected'
+            collab_request.save()
+            notify_collaboration_rejected(collab_request)
 
         return Response(CollaborationRequestSerializer(collab_request).data, status=status.HTTP_200_OK)
 
@@ -141,7 +153,10 @@ class LeaveProjectView(APIView):
         if not membership:
             return Response({"detail": "You are not a member of this project."}, status=status.HTTP_404_NOT_FOUND)
 
-        membership.delete()
+        with transaction.atomic():
+            membership.delete()
+            notify_member_left(project, request.user)
+
         return Response({"detail": "Successfully left the project."}, status=status.HTTP_200_OK)
 
 
@@ -165,5 +180,9 @@ class RemoveMemberView(APIView):
         if not membership:
             return Response({"detail": "User is not a member of this project."}, status=status.HTTP_404_NOT_FOUND)
 
-        membership.delete()
+        with transaction.atomic():
+            removed_user = membership.user
+            membership.delete()
+            notify_member_removed(project, removed_user, request.user)
+
         return Response({"detail": "Member removed successfully."}, status=status.HTTP_200_OK)
