@@ -101,7 +101,7 @@ class ProjectAPITests(APITestCase):
         self.assertIn(self.public_project.id, project_ids)
         self.assertNotIn(self.private_project.id, project_ids)
 
-    def test_private_project_visible_to_owner_only(self):
+    def test_private_project_visible_to_owner_and_members_only(self):
         detail_url = reverse('project-detail', kwargs={'pk': self.private_project.pk})
 
         # Owner can view
@@ -109,10 +109,37 @@ class ProjectAPITests(APITestCase):
         owner_res = self.client.get(detail_url)
         self.assertEqual(owner_res.status_code, status.HTTP_200_OK)
 
-        # Other user cannot view (403 Forbidden or 404)
+        # Other user receives 404 Not Found (protecting private project discovery)
         self.client.force_authenticate(user=self.other_user)
         other_res = self.client.get(detail_url)
-        self.assertEqual(other_res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(other_res.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Anonymous user receives 404 Not Found
+        self.client.force_authenticate(user=None)
+        anon_res = self.client.get(detail_url)
+        self.assertEqual(anon_res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_ownership_anti_spoofing_on_create_and_update(self):
+        self.client.force_authenticate(user=self.other_user)
+
+        # Attempt to spoof owner during project creation
+        payload = {
+            "title": "Spoofed Owner Project",
+            "description": "Attempting to assign owner to another user.",
+            "owner": self.owner.id,
+            "owner_id": self.owner.id,
+            "visibility": "public"
+        }
+        res = self.client.post(self.list_url, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        # Verify owner is forced to request.user (other_user)
+        self.assertEqual(res.data['owner']['id'], self.other_user.id)
+
+        # Attempt to transfer ownership via PATCH update
+        detail_url = reverse('project-detail', kwargs={'pk': res.data['id']})
+        patch_res = self.client.patch(detail_url, {"owner": self.owner.id, "owner_id": self.owner.id}, format='json')
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_res.data['owner']['id'], self.other_user.id)
 
     def test_mine_filter_requires_auth_and_returns_owner_projects_only(self):
         # Anonymous fails mine=true

@@ -213,3 +213,30 @@ class NotificationTests(APITestCase):
         self.assertIsNotNone(notif)
         self.assertEqual(notif.notification_type, 'MEMBER_LEFT')
         self.assertIn('left your project', notif.message)
+
+    def test_no_notification_created_on_failed_collaboration_action(self):
+        req = CollaborationRequest.objects.create(project=self.project, requester=self.user_b, status="accepted")
+        accept_url = reverse('collaboration-request-accept', kwargs={'pk': req.pk})
+
+        # Non-owner attempt -> 403 Forbidden
+        self.client.force_authenticate(user=self.user_c)
+        res_bad = self.client.post(accept_url)
+        self.assertEqual(res_bad.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Notification.objects.filter(recipient=self.user_b).count(), 0)
+
+        # Owner attempt on already accepted -> 400 Bad Request
+        self.client.force_authenticate(user=self.owner)
+        res_invalid = self.client.post(accept_url)
+        self.assertEqual(res_invalid.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Notification.objects.filter(recipient=self.user_b).count(), 0)
+
+    def test_actor_deletion_preserves_notification_with_set_null(self):
+        notif = Notification.objects.create(recipient=self.user_b, actor=self.owner, notification_type='COLLABORATION_ACCEPTED', message="Accepted")
+        self.assertEqual(notif.actor, self.owner)
+
+        # Delete actor account
+        self.owner.delete()
+
+        notif.refresh_from_db()
+        self.assertIsNone(notif.actor)
+        self.assertTrue(Notification.objects.filter(pk=notif.pk).exists())

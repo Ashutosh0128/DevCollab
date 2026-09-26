@@ -2,7 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from apps.users.models import Skill
 from apps.users.serializers import SkillSerializer
-from .models import Project
+from .models import Project, Task
+
 
 User = get_user_model()
 
@@ -109,3 +110,25 @@ class ProjectCreateUpdateSerializer(serializers.ModelSerializer):
         if value and not (value.startswith('http://') or value.startswith('https://')):
             raise serializers.ValidationError("Enter a valid URL starting with http:// or https://")
         return value
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    assignee_name = serializers.ReadOnlyField(source='assignee.full_name', default='')
+
+    class Meta:
+        model = Task
+        fields = (
+            'id',
+            'project',
+            'title',
+            'description',
+            'status',
+            'assignee',
+            'assignee_name',
+            'due_date',
+            'completed_at',
+            'created_at',
+            'updated_at',
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at')
+

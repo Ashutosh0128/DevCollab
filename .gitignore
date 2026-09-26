@@ -1,7 +1,8 @@
 # Environment Variables & Secrets
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+
 
 # Python / Django
 __pycache__/

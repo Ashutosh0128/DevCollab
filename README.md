@@ -1,51 +1,82 @@
 # DevCollab — AI-Powered Developer Collaboration Platform
 
-DevCollab is an AI-powered SaaS platform uniting project tracking, task Kanban boards, team discussions, GitHub activity, and embedded AI intelligence into one developer-centric workflow.
+DevCollab is an AI-powered SaaS platform uniting project tracking, task Kanban boards, team discussions, GitHub activity, and embedded local AI intelligence (`qwen2.5:3b` via Ollama) into one developer-centric workflow.
 
 ---
 
 ## 🚀 Quick Start Guide
 
 ### Prerequisites
-- **Node.js**: v20 or higher
-- **Python**: v3.11 or higher
-- **Docker & Docker Compose**: (Optional for containerized development)
+- **Node.js**: v22 or higher
+- **Python**: v3.12 or higher
+- **Docker & Docker Compose**: (Required for containerized deployment)
+- **Local Ollama**: (Optional for local AI developer-project matching)
+
+---
+
+## 🤖 Local Ollama Setup (Phase 9 AI Matching)
+
+DevCollab utilizes a local open-weights LLM (`qwen2.5:3b`) running via Ollama for zero API cost.
+
+1. **Install Ollama**: Download from [https://ollama.com/download/windows](https://ollama.com/download/windows)
+2. **Pull the model**:
+   ```bash
+   ollama pull qwen2.5:3b
+   ```
+3. **Host Configuration**:
+   - **Native Windows Django**: `OLLAMA_HOST=http://localhost:11434`
+   - **Dockerized Django Container**: `OLLAMA_HOST=http://host.docker.internal:11434`
 
 ---
 
 ## ⚙️ Environment Configuration
 
-1. Copy `.env.example` to create your local `.env` file:
+1. Copy `.env.example` to `.env`:
    ```bash
    cp .env.example .env
    ```
-2. The default values in `.env` are configured for local development. Never commit real credentials or production secrets to Git.
+2. Key environment variables in `.env`:
+   - `SECRET_KEY`: Django application secret key.
+   - `DEBUG`: `True` for development, `False` for production hardening.
+   - `WEB_CONCURRENCY`: Gunicorn worker count (default: `1` for lightweight 8GB RAM machines).
+   - `OLLAMA_HOST`: Set according to native vs Dockerized environment.
 
 ---
 
 ## 🐳 Running with Docker Compose (Recommended)
 
-To start the entire stack (PostgreSQL database, Django API backend, and React Vite frontend) in development mode:
+Start the production-ready stack (PostgreSQL 16 database, Gunicorn Django API backend, and Nginx React frontend):
 
 ```bash
-docker compose up --build
+# Build containers
+docker compose build
+
+# Start containers in detached mode
+docker compose up -d
+
+# Verify running container status
+docker compose ps
+
+# Stop stack
+docker compose down
 ```
 
-- **Frontend**: [http://localhost:5173](http://localhost:5173)
-- **Backend API**: [http://localhost:8000/api/v1/health/](http://localhost:8000/api/v1/health/)
+### Access Points
+- **Frontend SPA**: [http://localhost:5173](http://localhost:5173) (served via Nginx)
+- **Backend API**: [http://localhost:8000](http://localhost:8000) (served via Gunicorn)
+- **Canonical Health Check**: [http://localhost:8000/api/health/](http://localhost:8000/api/health/)
 - **PostgreSQL Database**: Port `5432`
 
 ---
 
-## 💻 Running Locally (Native)
+## 💻 Running Locally (Native Development)
 
 ### 1. Backend (Django REST Framework)
 
 ```bash
-# Navigate to backend directory
 cd backend
 
-# Create virtual environment
+# Create & activate virtual environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
@@ -59,12 +90,9 @@ python manage.py migrate
 python manage.py runserver 8000
 ```
 
-Backend will be accessible at `http://localhost:8000`.
-
 ### 2. Frontend (React + Vite + TypeScript)
 
 ```bash
-# Navigate to frontend directory
 cd frontend
 
 # Install dependencies
@@ -74,29 +102,42 @@ npm install
 npm run dev
 ```
 
-Frontend will be accessible at `http://localhost:5173`.
-
 ---
 
 ## 🏥 Health Check Endpoints
 
-- **Backend Health Check**: `GET /api/v1/health/`
-  - Returns:
+- **Canonical Health Check**: `GET /api/health/`
+- **Backward Compatible Health Check**: `GET /api/v1/health/`
+  - **Healthy Response (HTTP 200 OK)**:
     ```json
     {
       "status": "ok",
       "service": "DevCollab API",
-      "timestamp": "2026-09-03T20:00:00.000000+00:00",
+      "timestamp": "2026-09-05T20:00:00.000000+00:00",
       "database": {
         "vendor": "postgresql",
         "status": "ok"
       }
     }
     ```
+  - **Unhealthy Response (HTTP 503 Service Unavailable)**:
+    ```json
+    {
+      "status": "error",
+      "service": "DevCollab API",
+      "timestamp": "2026-09-05T20:00:00.000000+00:00",
+      "database": {
+        "status": "unreachable"
+      }
+    }
+    ```
 
 ---
 
-## 🛠️ Development Workflow & Branching Rules
-- **Working Branch**: `siddhi-work`
-- **Main Branch**: `main` (Protected)
-- Always work on your designated feature branch and verify health checks before opening a pull request.
+## 🔄 Continuous Integration (CI)
+
+Automated GitHub Actions CI workflows (`.github/workflows/ci.yml`) run on `push` and `pull_request`:
+- **Backend Job**: System checks, migration verification (`makemigrations --check`), unit tests with PostgreSQL service.
+- **Frontend Job**: TypeScript compilation check (`npx tsc --noEmit`), Vite production build (`npm run build`).
+
+For detailed production deployment instructions, see [docs/deployment.md](file:///c:/Users/siddh/OneDrive/Desktop/devcollab/docs/deployment.md).

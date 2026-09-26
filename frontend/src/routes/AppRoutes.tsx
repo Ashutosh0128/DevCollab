@@ -10,6 +10,7 @@ import { ProjectDetails } from '../pages/ProjectDetails';
 import { CreateProject } from '../pages/CreateProject';
 import { EditProject } from '../pages/EditProject';
 import { ProjectRequests } from '../pages/ProjectRequests';
+import { ProjectAnalytics } from '../pages/ProjectAnalytics';
 import { Notifications } from '../pages/Notifications';
 import { ProtectedRoute } from './ProtectedRoute';
 
@@ -32,6 +33,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/projects/new" element={<CreateProject />} />
         <Route path="/projects/:id/edit" element={<EditProject />} />
         <Route path="/projects/:id/requests" element={<ProjectRequests />} />
+        <Route path="/projects/:id/analytics" element={<ProjectAnalytics />} />
       </Route>
     </Routes>
   );

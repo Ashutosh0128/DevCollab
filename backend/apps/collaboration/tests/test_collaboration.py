@@ -180,16 +180,28 @@ class CollaborationTests(APITestCase):
         response = self.client.delete(remove_url)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_non_owner_cannot_accept_or_reject_request(self):
+        req = CollaborationRequest.objects.create(project=self.public_project, requester=self.user_b, message="Hi")
+        accept_url = reverse('collaboration-request-accept', kwargs={'pk': req.pk})
+        reject_url = reverse('collaboration-request-reject', kwargs={'pk': req.pk})
+
+        self.client.force_authenticate(user=self.user_c)
+        res_accept = self.client.post(accept_url)
+        self.assertEqual(res_accept.status_code, status.HTTP_403_FORBIDDEN)
+
+        res_reject = self.client.post(reject_url)
+        self.assertEqual(res_reject.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_private_project_members_restricted(self):
         ProjectMembership.objects.create(project=self.private_project, user=self.user_b)
         members_url = reverse('collaboration-project-members', kwargs={'project_id': self.private_project.id})
 
-        # Anonymous fails
-        self.assertEqual(self.client.get(members_url).status_code, status.HTTP_401_UNAUTHORIZED)
+        # Anonymous fails (404 Not Found)
+        self.assertEqual(self.client.get(members_url).status_code, status.HTTP_404_NOT_FOUND)
 
-        # Non-member authenticated user fails
+        # Non-member authenticated user fails (404 Not Found)
         self.client.force_authenticate(user=self.user_c)
-        self.assertEqual(self.client.get(members_url).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.get(members_url).status_code, status.HTTP_404_NOT_FOUND)
 
         # Member succeeds
         self.client.force_authenticate(user=self.user_b)

@@ -4,6 +4,7 @@ import { Navbar } from '../components/layout/Navbar';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { RequestJoinModal } from '../components/collaboration/RequestJoinModal';
 import { MembersList } from '../components/collaboration/MembersList';
+import { ProjectMatchCard } from '../components/projects/ProjectMatchCard';
 import { getProject, deleteProject } from '../api/projects';
 import {
   createCollaborationRequest,
@@ -27,6 +28,7 @@ import {
   UserCheck,
   LogOut,
   Users,
+  BarChart2,
 } from 'lucide-react';
 import { AxiosError } from 'axios';
 
@@ -209,6 +211,14 @@ export const ProjectDetails: React.FC = () => {
               {isOwner ? (
                 <>
                   <Link
+                    to={`/projects/${project.id}/analytics`}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs transition-all flex items-center justify-center space-x-1.5"
+                  >
+                    <BarChart2 className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Analytics</span>
+                  </Link>
+
+                  <Link
                     to={`/projects/${project.id}/requests`}
                     className="px-4 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-semibold text-xs transition-all flex items-center justify-center space-x-1.5"
                   >
@@ -234,6 +244,13 @@ export const ProjectDetails: React.FC = () => {
                 </>
               ) : isMember ? (
                 <div className="flex items-center space-x-3">
+                  <Link
+                    to={`/projects/${project.id}/analytics`}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs transition-all flex items-center justify-center space-x-1.5"
+                  >
+                    <BarChart2 className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Analytics</span>
+                  </Link>
                   <span className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
                     <UserCheck className="w-4 h-4" />
                     <span>You are a Member</span>
@@ -296,6 +313,8 @@ export const ProjectDetails: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Detailed Project Description */}
           <div className="lg:col-span-2 space-y-8">
+            {isAuthenticated && <ProjectMatchCard projectId={project.id} />}
+
             <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-8 shadow-xl backdrop-blur">
               <h2 className="text-lg font-bold text-slate-100 mb-4 flex items-center space-x-2">
                 <FolderKanban className="w-5 h-5 text-indigo-400" />

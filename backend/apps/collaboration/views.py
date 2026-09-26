@@ -61,6 +61,8 @@ class ProjectIncomingRequestsView(APIView):
     def get(self, request, project_id):
         project = get_object_or_404(Project, pk=project_id)
         if project.owner != request.user:
+            if project.visibility == 'private':
+                return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
             return Response({"detail": "Only the project owner can view incoming collaboration requests."}, status=status.HTTP_403_FORBIDDEN)
 
         requests = CollaborationRequest.objects.filter(project=project).select_related('project', 'requester')
@@ -129,12 +131,12 @@ class ProjectMembersView(APIView):
         # Private project protection
         if project.visibility == 'private':
             if not (request.user and request.user.is_authenticated):
-                return Response({"detail": "Authentication required to view members of a private project."}, status=status.HTTP_401_UNAUTHORIZED)
+                return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
             
             is_owner = (project.owner == request.user)
             is_member = project.memberships.filter(user=request.user).exists()
             if not (is_owner or is_member):
-                return Response({"detail": "You do not have permission to view members of this private project."}, status=status.HTTP_403_FORBIDDEN)
+                return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
         members = project.memberships.select_related('user').all()
         return Response(ProjectMembershipSerializer(members, many=True).data, status=status.HTTP_200_OK)

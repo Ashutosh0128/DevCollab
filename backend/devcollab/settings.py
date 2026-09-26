@@ -14,7 +14,7 @@ sys.path.insert(0, str(BASE_DIR / 'apps'))
 load_dotenv(BASE_DIR.parent / '.env')
 load_dotenv(BASE_DIR / '.env')
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-devcollab-phase1-secret-key-change-in-prod')
+SECRET_KEY = os.getenv('SECRET_KEY') or os.getenv('DJANGO_SECRET_KEY', 'django-insecure-devcollab-phase1-secret-key-change-in-prod')
 
 DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
@@ -139,6 +139,18 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': os.getenv('THROTTLE_ANON_RATE', '100/minute'),
+        'user': os.getenv('THROTTLE_USER_RATE', '1000/minute'),
+        'login': os.getenv('THROTTLE_LOGIN_RATE', '10/minute'),
+        'register': os.getenv('THROTTLE_REGISTER_RATE', '10/minute'),
+        'password_change': os.getenv('THROTTLE_PASSWORD_CHANGE_RATE', '10/minute'),
+    },
 }
 
 # SimpleJWT Configuration
@@ -164,8 +176,28 @@ SPECTACULAR_SETTINGS = {
     'SCHEMA_PATH_PREFIX': '/api/',
 }
 
-# CORS Configuration
+# CORS & CSRF Configuration
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
     origin.strip() for origin in os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',') if origin.strip()
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',') if origin.strip()
+]
+
+# Production Security Rules
+if not DEBUG:
+    if SECRET_KEY.startswith('django-insecure'):
+        raise ValueError("Insecure SECRET_KEY / DJANGO_SECRET_KEY cannot be used in production (DEBUG=False).")
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+    hsts_seconds = os.getenv('SECURE_HSTS_SECONDS')
+    if hsts_seconds:
+        SECURE_HSTS_SECONDS = int(hsts_seconds)
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
+
+

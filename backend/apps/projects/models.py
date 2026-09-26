@@ -44,3 +44,41 @@ class Project(BaseModel):
 
     def __str__(self):
         return f"{self.title} (by {self.owner.username})"
+
+
+class Task(BaseModel):
+    """
+    Model representing project tasks assigned to developers.
+    """
+    STATUS_CHOICES = [
+        ('todo', 'To Do'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+    ]
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='tasks',
+        help_text="Project this task belongs to"
+    )
+    title = models.CharField(max_length=200, help_text="Task title")
+    description = models.TextField(blank=True, default='', help_text="Detailed task description")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='todo')
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_tasks',
+        help_text="Developer assigned to this task"
+    )
+    due_date = models.DateTimeField(null=True, blank=True, help_text="Optional task due date")
+    completed_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when task was marked completed")
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.status}) - {self.project.title}"
+

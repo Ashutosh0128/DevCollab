@@ -30,6 +30,7 @@ class GlobalSkillsView(APIView):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'register'
 
     @extend_schema(
         request=RegisterSerializer,
@@ -56,6 +57,7 @@ class RegisterView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'login'
 
     @extend_schema(
         request=LoginSerializer,
@@ -184,6 +186,7 @@ class UserSkillDetailView(APIView):
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_scope = 'password_change'
 
     @extend_schema(
         request=ChangePasswordSerializer,
